@@ -120,6 +120,12 @@ object List {
     foldLeft(as, Nil: List[A])(Cons(_, _))
   }
 
+  def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = (sup, sub) match {
+    case (Cons(a, tail1), Cons(b, tail2)) if a == b => hasSubsequence(tail1, tail2)
+    case (Cons(_, tail1), Cons(_, tail2)) => hasSubsequence(tail1, sub)
+    case (_, Nil) => true
+    case (Nil, Cons(_, _)) => false
+  }
 
   def setHead[A](l: List[A], head: A): List[A] = {
     l match {
