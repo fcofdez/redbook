@@ -1,5 +1,8 @@
 package strictness
 
+import scala.annotation.tailrec
+import Stream._
+
 sealed trait Stream[+A] {
   def headOption: Option[A] = this match {
     case Empty => None
@@ -28,6 +31,51 @@ sealed trait Stream[+A] {
     case Empty => List[A]()
     case Cons(h, t) => h() :: t().toList
   }
+
+  def foldRight[B](z: => B)(f: (A, =>B) => B): B = this match {
+    case Cons(h, t) => f(h(), t().foldRight(z)(f))
+    case _ => z
+  }
+
+  def forAll(p: A => Boolean): Boolean = {
+    foldRight(true)((a, b) => p(a) && b)
+  }
+
+  def headOptionFR: Option[A] = {
+    foldRight(None: Option[A])((a, _) => Some(a))
+  }
+
+  def mapFR[B](f: A => B): Stream[B] =
+    foldRight(empty[B])((h, t) => cons(f(h), t))
+
+  def filter(f: A => Boolean): Stream[A] = {
+    foldRight(empty[A])((h, t) => if(f(h)) cons(h, t) else t)
+  }
+
+  def flatMap[B](f: A => Stream[B]): Stream[B] = {
+    foldRight(empty[B])((h, t) => f(h) append t)
+  }
+
+  def append[B>:A](s: => Stream[B]): Stream[B] =
+    foldRight(s)((h, t) => cons(h, t))
+
+  def map[B](f: A => B): Stream[B] = this match {
+    case Cons(h, t) => cons(f(h()), t().map(f))
+    case Empty => Empty
+  }
+
+  def takeWhileFR(p: A => Boolean): Stream[A] = {
+    foldRight(Empty: Stream[A])((a, b) => if(p(a)) cons(a, b) else b)
+  }
+
+  def toListTR: List[A] = {
+    @tailrec
+    def go(l: List[A], s: Stream[A]): List[A] = s match {
+      case Empty => l
+      case Cons(h, t) => go(h() :: l, t())
+    }
+    go(List[A](), this)
+  }
 }
 
 case object Empty extends Stream[Nothing]
@@ -38,6 +86,15 @@ object Stream {
     lazy val head = hd
     lazy val tail = tl
     Cons(() => head, () => tail)
+  }
+
+  def constant[A](a: A): Stream[A] = {
+    lazy val tail: Stream[A] = Cons(() => a, () => tail)
+    tail
+  }
+
+  def from(n: Int): Stream[Int] = {
+    cons(n, from(n +1))
   }
 
   def empty[A]: Stream[A] = Empty
