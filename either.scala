@@ -1,4 +1,5 @@
 package errors
+
 trait Either[+E, +A] {
 
   def map[B](f: A => B): Either[E, B] = this match {
@@ -27,12 +28,14 @@ trait Either[+E, +A] {
 case class Left[+E](get: E) extends Either[E,Nothing]
 case class Right[+A](get: A) extends Either[Nothing,A]
 
-def sequence[E, A](es: List[Either[E, A]]): Either[E, List[A]] = es match {
-  case Nil => Right(Nil)
-  case h :: t => h flatMap(hh => sequence(t) map (hh :: _))
-}
+object Either {
+  def sequence[E, A](es: List[Either[E, A]]): Either[E, List[A]] = es match {
+    case Nil => Right(Nil)
+    case h :: t => h flatMap(hh => sequence(t) map (hh :: _))
+  }
 
-def traverse[E, A, B](as: List[A])(f: A => Either[E, B]): Either[E, List[B]] = as match {
-  case Nil => Right(Nil)
-  case h :: t => f(h) flatMap(hh => traverse(t)(f) map (hh :: _))
+  def traverse[E, A, B](as: List[A])(f: A => Either[E, B]): Either[E, List[B]] = as match {
+    case Nil => Right(Nil)
+    case h :: t => f(h) flatMap(hh => traverse(t)(f) map (hh :: _))
+  }
 }
