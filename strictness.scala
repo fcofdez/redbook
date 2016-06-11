@@ -27,6 +27,7 @@ sealed trait Stream[+A] {
     case Cons(_, _) => Empty
   }
 
+
   def toList: List[A] = this match {
     case Empty => List[A]()
     case Cons(h, t) => h() :: t().toList
@@ -44,6 +45,12 @@ sealed trait Stream[+A] {
   def headOptionFR: Option[A] = {
     foldRight(None: Option[A])((a, _) => Some(a))
   }
+
+  def mapUnfold[B](f: A => B): Stream[B] =
+    unfold(this) {
+      case Cons(h, t) => Some((f(h()), t()))
+      case _ => None
+    }
 
   def mapFR[B](f: A => B): Stream[B] =
     foldRight(empty[B])((h, t) => cons(f(h), t))
@@ -95,6 +102,28 @@ object Stream {
 
   def from(n: Int): Stream[Int] = {
     cons(n, from(n +1))
+  }
+
+  def fibs: Stream[Int] = {
+    def go(f0: Int, f1: Int): Stream[Int] =
+      cons(f0, go(f1, f0 + f1))
+    go(0, 1)
+  }
+
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+    f(z).map(a => cons(a._1, unfold(a._2)(f))).getOrElse(empty)
+  }
+
+  def constantUnfold[A](a: A): Stream[A] = {
+    unfold(a)(s => Some(s, a))
+  }
+
+  def fromUnfold(n: Int): Stream[Int] = {
+    unfold(n)(s => Some(s, s+1))
+  }
+
+  def fibUnfold: Stream[Int] = {
+    unfold((0, 1))(s => Some(s._1, (s._2, s._1 + s._2)))
   }
 
   def empty[A]: Stream[A] = Empty
