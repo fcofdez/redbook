@@ -9,6 +9,44 @@ sealed trait Stream[+A] {
     case Cons(h, t) => Some(h())
   }
 
+  def takeWhileUnfold(p: A => Boolean): Stream[A] =
+    unfold(this) {
+      case Cons(h, t) if p(h()) => Some(h(), t())
+      case _ => None
+    }
+
+  def tails: Stream[Stream[A]] =
+    unfold(this) {
+      case prefix @ Cons(h, t) => Some(prefix, t())
+      case Empty => None
+    } append Stream(empty)
+
+  def startsWith[A](s: Stream[A]): Boolean =
+    zipAll(s).takeWhile(!_._2.isEmpty) forAll {
+      case (h,h2) => h == h2
+    }
+
+  def zipWith[B,C](s2: Stream[B])(f: (A,B) => C): Stream[C] =
+    unfold((this, s2)) {
+      case (Cons(h1, t1), Cons(h2, t2)) => Some(f(h1(), h2()), (t1(), t2()))
+      case _ => None
+    }
+
+  def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] =
+    unfold((this, s2)) {
+      case (Cons(h1, t1), Cons(h2, t2)) => Some((Some(h1()), Some(h2())), (t1(), t2()))
+      case (Cons(h1, t1), Empty) => Some((Some(h1()), None), (t1(), Empty))
+      case (Empty, Cons(h2, t2)) => Some((None, Some(h2())), (Empty, t2()))
+      case _ => None
+    }
+
+  def takeUnfold(n: Int): Stream[A] =
+    unfold((n, this)) {
+      case (0, Cons(h, t)) => None
+      case (counter, Cons(h, t)) => Some((h(), (counter - 1, t())))
+      case _ => None
+    }
+
   def take(n: Int): Stream[A] = this match {
     case Empty => Empty
     case Cons(h, t) if n == 0 => Empty
@@ -111,7 +149,7 @@ object Stream {
   }
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
-    f(z).map(a => cons(a._1, unfold(a._2)(f))).getOrElse(empty)
+    f(z).map((p: (A,S))  => cons(p._1, unfold(p._2)(f))).getOrElse(empty)
   }
 
   def constantUnfold[A](a: A): Stream[A] = {
